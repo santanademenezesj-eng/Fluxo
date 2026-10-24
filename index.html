@@ -1,0 +1,1354 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizzaria Fluxo - Pedidos e Entregas</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#fff1f1',
+                            100: '#ffdfdf',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                            800: '#991b1b',
+                            900: '#7f1d1d',
+                            dark: '#0f0f11',
+                            card: '#18181b',
+                            border: '#27272a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #18181b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.8); }
+        }
+        .glow-effect { animation: pulseGlow 3s infinite; }
+    </style>
+</head>
+<body class="bg-brand-dark text-gray-100 h-full flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <!-- Modal de Alerta / Mensagem Personalizada -->
+    <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+        <div class="bg-brand-card border border-brand-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all">
+            <div id="modalIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mb-4 text-xl mx-auto"></div>
+            <h3 id="modalTitle" class="text-lg font-bold text-center mb-2"></h3>
+            <p id="modalMessage" class="text-sm text-gray-400 text-center mb-6"></p>
+            <button onclick="closeModal()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl transition shadow-lg shadow-brand-600/30">
+                Entendido
+            </button>
+        </div>
+    </div>
+
+    <!-- TOAST DE NOTIFICAÇÃO -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- APLICATIVO PRINCIPAL -->
+    <div id="app" class="flex-1 flex flex-col h-full overflow-hidden">
+        
+        <!-- HEADER / NAVBAR -->
+        <header class="bg-brand-card border-b border-brand-border px-4 lg:px-8 py-3.5 flex items-center justify-between shrink-0 z-20">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-700 to-amber-500 flex items-center justify-center shadow-lg shadow-brand-600/30">
+                    <i class="fa-solid fa-pizza-slice text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg bg-gradient-to-r from-white via-gray-200 to-amber-400 bg-clip-text text-transparent tracking-tight">PIZZARIA FLUXO</h1>
+                    <p class="text-xs text-amber-500 font-medium flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema de Pedidos & Entregas
+                    </p>
+                </div>
+            </div>
+
+            <div id="navRight" class="flex items-center gap-3">
+                <!-- Inserido dinamicamente conforme estado de login -->
+            </div>
+        </header>
+
+        <!-- CONTEÚDO DINÂMICO (TELAS) -->
+        <main class="flex-1 overflow-hidden relative flex flex-col">
+            
+            <!-- 1. TELA DE LOGIN / CADASTRO / ESQUECI SENHA -->
+            <section id="screenAuth" class="absolute inset-0 bg-brand-dark overflow-y-auto custom-scrollbar flex items-center justify-center p-4 z-30">
+                <div class="w-full max-w-md bg-brand-card border border-brand-border rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                    <div class="absolute -top-24 -right-24 w-48 h-48 bg-brand-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                    
+                    <div class="text-center mb-8">
+                        <div class="inline-flex p-3 rounded-2xl bg-brand-500/10 text-brand-500 mb-3 text-2xl">
+                            <i class="fa-solid fa-fire-flame-curved"></i>
+                        </div>
+                        <h2 id="authCardTitle" class="text-2xl font-bold text-white tracking-tight">Bem-vindo(a)!</h2>
+                        <p id="authCardSubtitle" class="text-xs text-gray-400 mt-1">Faça login para saborear as melhores pizzas da região</p>
+                    </div>
+
+                    <!-- Seletor de Perfil (Cliente ou Lanchonete) -->
+                    <div class="grid grid-cols-2 gap-2 p-1 bg-black/40 rounded-2xl border border-brand-border mb-6">
+                        <button type="button" onclick="switchAuthRole('client')" id="tabRoleClient" class="py-2.5 text-xs font-bold rounded-xl transition bg-brand-600 text-white shadow">
+                            <i class="fa-solid fa-user mr-1.5"></i> Cliente
+                        </button>
+                        <button type="button" onclick="switchAuthRole('admin')" id="tabRoleAdmin" class="py-2.5 text-xs font-bold rounded-xl transition text-gray-400 hover:text-white">
+                            <i class="fa-solid fa-store mr-1.5"></i> Lanchonete
+                        </button>
+                    </div>
+
+                    <!-- Formulário de Login -->
+                    <form id="formLogin" onsubmit="handleLogin(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">E-mail ou Usuário</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-envelope"></i></span>
+                                <input type="text" id="loginEmail" required class="w-full bg-black/50 border border-brand-border rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition" placeholder="seu@email.com ou admin">
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold text-gray-300">Senha</label>
+                                <button type="button" onclick="switchAuthView('forgot')" class="text-xs text-brand-500 hover:underline">Esqueceu a senha?</button>
+                            </div>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-lock"></i></span>
+                                <input type="password" id="loginPassword" required class="w-full bg-black/50 border border-brand-border rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition" placeholder="••••••••">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-brand-600 to-amber-600 hover:from-brand-500 hover:to-amber-500 text-white font-bold rounded-xl shadow-lg shadow-brand-600/30 transition transform active:scale-[0.98]">
+                            Entrar no Sistema
+                        </button>
+
+                        <div id="clientRegisterPrompt" class="text-center pt-2">
+                            <p class="text-xs text-gray-400">Não tem uma conta? <button type="button" onclick="switchAuthView('register')" class="text-brand-500 font-bold hover:underline">Cadastre-se</button></p>
+                        </div>
+                    </form>
+
+                    <!-- Formulário de Cadastro de Cliente -->
+                    <form id="formRegister" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Nome Completo</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-user"></i></span>
+                                <input type="text" id="regName" required class="w-full bg-black/50 border border-brand-border rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition" placeholder="João da Silva">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">E-mail</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-envelope"></i></span>
+                                <input type="email" id="regEmail" required class="w-full bg-black/50 border border-brand-border rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition" placeholder="joao@email.com">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Telefone / WhatsApp</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-phone"></i></span>
+                                <input type="text" id="regPhone" required class="w-full bg-black/50 border border-brand-border rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition" placeholder="(11) 98888-7777">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Senha</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-lock"></i></span>
+                                <input type="password" id="regPassword" required class="w-full bg-black/50 border border-brand-border rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition" placeholder="••••••••">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-brand-600 to-amber-600 hover:from-brand-500 hover:to-amber-500 text-white font-bold rounded-xl shadow-lg shadow-brand-600/30 transition transform active:scale-[0.98]">
+                            Criar Conta
+                        </button>
+                        <div class="text-center pt-2">
+                            <p class="text-xs text-gray-400">Já tem uma conta? <button type="button" onclick="switchAuthView('login')" class="text-brand-500 font-bold hover:underline">Faça login</button></p>
+                        </div>
+                    </form>
+
+                    <!-- Formulário de Recuperação / Alteração de Senha -->
+                    <form id="formForgot" onsubmit="handleForgot(event)" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Informe seu E-mail cadastrado</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-envelope"></i></span>
+                                <input type="email" id="forgotEmail" required class="w-full bg-black/50 border border-brand-border rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition" placeholder="seu@email.com">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">Nova Senha</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-key"></i></span>
+                                <input type="password" id="forgotNewPassword" required class="w-full bg-black/50 border border-brand-border rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition" placeholder="Nova senha">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-brand-600 to-amber-600 hover:from-brand-500 hover:to-amber-500 text-white font-bold rounded-xl shadow-lg shadow-brand-600/30 transition transform active:scale-[0.98]">
+                            Atualizar Senha
+                        </button>
+                        <div class="text-center pt-2">
+                            <button type="button" onclick="switchAuthView('login')" class="text-xs text-brand-500 hover:underline"><i class="fa-solid fa-arrow-left mr-1"></i> Voltar ao Login</button>
+                        </div>
+                    </form>
+
+                    <!-- Dica de Acesso Rápido -->
+                    <div class="mt-6 pt-4 border-t border-brand-border/60 text-center">
+                        <p class="text-[11px] text-gray-400">💡 <span class="font-semibold text-gray-300">Acesso Lanchonete:</span> Use <code class="text-amber-400 bg-black/40 px-1 py-0.5 rounded">lanchonete@fluxo.com</code> / <code class="text-amber-400 bg-black/40 px-1 py-0.5 rounded">123456</code></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. PAINEL DO CLIENTE (CARDÁPIO, CARRINHO, ACOMPANHAMENTO, HISTÓRICO) -->
+            <div id="screenClient" class="absolute inset-0 flex flex-col hidden bg-brand-dark overflow-hidden">
+                
+                <!-- Abas de Navegação do Cliente -->
+                <div class="bg-brand-card border-b border-brand-border px-4 lg:px-8 py-2 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+                        <button onclick="switchClientTab('menu')" id="clientTabMenu" class="px-4 py-2 rounded-xl text-xs font-bold transition bg-brand-600 text-white flex items-center gap-2">
+                            <i class="fa-solid fa-utensils"></i> Cardápio
+                        </button>
+                        <button onclick="switchClientTab('cart')" id="clientTabCart" class="px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2 relative">
+                            <i class="fa-solid fa-cart-shopping"></i> Carrinho
+                            <span id="cartBadge" class="hidden absolute -top-1.5 -right-1.5 bg-brand-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
+                        </button>
+                        <button onclick="switchClientTab('orders')" id="clientTabOrders" class="px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Meus Pedidos
+                        </button>
+                    </div>
+
+                    <!-- Simulação de Link de Compartilhamento -->
+                    <button onclick="copyClientShareLink()" class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-semibold transition">
+                        <i class="fa-solid fa-share-nodes"></i> Copiar Link de Acesso
+                    </button>
+                </div>
+
+                <!-- Conteúdo das Abas do Cliente -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8">
+                    
+                    <!-- 2.1 ABA CARDÁPIO -->
+                    <div id="clientViewMenu" class="space-y-6 max-w-6xl mx-auto">
+                        <!-- Banner promocional -->
+                        <div class="relative rounded-3xl overflow-hidden bg-gradient-to-r from-brand-900 via-brand-800 to-amber-900 p-6 lg:p-8 border border-brand-border shadow-xl">
+                            <div class="absolute right-0 top-0 bottom-0 w-1/3 opacity-20 bg-cover bg-center hidden md:block" style="background-image: url('https://placehold.co/600x400/991b1b/ffffff?text=Pizza')"></div>
+                            <div class="relative z-10 max-w-lg">
+                                <span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold px-3 py-1 rounded-full inline-block mb-3">🔥 APROVEITE A PROMOÇÃO</span>
+                                <h2 class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight mb-2">Pizzas Artesanais Assadas no Forno a Lenha</h2>
+                                <p class="text-xs lg:text-sm text-gray-300 mb-4">Massa fermentada naturalmente, ingredientes frescos selecionados e bordas recheadas irresistíveis.</p>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs text-amber-400 font-semibold"><i class="fa-solid fa-motorcycle mr-1"></i> Entrega Rápida em até 40min</span>
+                                    <span class="text-xs text-emerald-400 font-semibold"><i class="fa-solid fa-shield-check mr-1"></i> Satisfação Garantida</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Categorias de Filtro -->
+                        <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-2">
+                            <button onclick="filterMenu('all')" id="filterBtnAll" class="px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white transition whitespace-nowrap">Todas as Pizzas</button>
+                            <button onclick="filterMenu('salgada')" id="filterBtnSalgada" class="px-4 py-2 rounded-xl text-xs font-bold bg-brand-card border border-brand-border text-gray-300 hover:text-white transition whitespace-nowrap">Salgadas</button>
+                            <button onclick="filterMenu('doce')" id="filterBtnDoce" class="px-4 py-2 rounded-xl text-xs font-bold bg-brand-card border border-brand-border text-gray-300 hover:text-white transition whitespace-nowrap">Doces</button>
+                        </div>
+
+                        <!-- Lista de Pizzas Grid -->
+                        <div id="menuGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Renderizado via JS -->
+                        </div>
+                    </div>
+
+                    <!-- 2.2 ABA CARRINHO -->
+                    <div id="clientViewCart" class="space-y-6 max-w-4xl mx-auto hidden">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-cart-shopping text-brand-500"></i> Seu Carrinho de Compras
+                        </h2>
+
+                        <div id="cartContainerContent" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Itens do Carrinho -->
+                            <div id="cartItemsList" class="lg:col-span-2 space-y-3">
+                                <!-- Renderizado via JS -->
+                            </div>
+
+                            <!-- Resumo & Checkout -->
+                            <div class="bg-brand-card border border-brand-border rounded-3xl p-6 h-fit space-y-4 shadow-xl">
+                                <h3 class="text-sm font-bold text-white border-b border-brand-border pb-3">Resumo do Pedido</h3>
+                                
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex justify-between text-gray-400">
+                                        <span>Subtotal</span>
+                                        <span id="cartSubtotal" class="text-white font-medium">R$ 0,00</span>
+                                    </div>
+                                    <div class="flex justify-between text-gray-400">
+                                        <span>Taxa de Entrega</span>
+                                        <span class="text-white font-medium">R$ 8,00</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm font-bold text-white pt-2 border-t border-brand-border">
+                                        <span>Total</span>
+                                        <span id="cartTotal" class="text-amber-400">R$ 8,00</span>
+                                    </div>
+                                </div>
+
+                                <!-- Dados de Entrega e Pagamento -->
+                                <div class="pt-4 border-t border-brand-border space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-300 mb-1">Endereço de Entrega</label>
+                                        <input type="text" id="checkoutAddress" class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500" placeholder="Rua Exemplo, 123 - Bairro">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-300 mb-1">Forma de Pagamento</label>
+                                        <select id="checkoutPayment" class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+                                            <option value="PIX">PIX (Aprovação Instantânea)</option>
+                                            <option value="Cartão de Crédito">Cartão de Crédito (Na Entrega)</option>
+                                            <option value="Cartão de Débito">Cartão de Débito (Na Entrega)</option>
+                                            <option value="Dinheiro">Dinheiro (Levar Troco)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-300 mb-1">Observações (Opcional)</label>
+                                        <textarea id="checkoutNotes" rows="2" class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500" placeholder="Ex: Sem cebola, campainha quebrada..."></textarea>
+                                    </div>
+                                </div>
+
+                                <button onclick="checkoutOrder()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition transform active:scale-[0.98] flex items-center justify-center gap-2 text-xs">
+                                    <i class="fa-solid fa-check"></i> Finalizar Pedido
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2.3 ABA MEUS PEDIDOS & ACOMPANHAMENTO -->
+                    <div id="clientViewOrders" class="space-y-6 max-w-4xl mx-auto hidden">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-brand-500"></i> Acompanhamento & Histórico
+                        </h2>
+                        <div id="clientOrdersList" class="space-y-4">
+                            <!-- Renderizado via JS -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 3. PAINEL DA LANCHONETE (ADMINISTRAÇÃO, PEDIDOS EM TEMPO REAL, CARDÁPIO) -->
+            <div id="screenAdmin" class="absolute inset-0 flex flex-col hidden bg-brand-dark overflow-hidden">
+                
+                <!-- Abas da Lanchonete -->
+                <div class="bg-brand-card border-b border-brand-border px-4 lg:px-8 py-2 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+                        <button onclick="switchAdminTab('orders')" id="adminTabOrders" class="px-4 py-2 rounded-xl text-xs font-bold transition bg-brand-600 text-white flex items-center gap-2">
+                            <i class="fa-solid fa-bell"></i> Gestão de Pedidos em Tempo Real
+                            <span id="adminOrderBadge" class="bg-amber-500 text-black text-[10px] px-1.5 py-0.5 rounded-full font-extrabold hidden">0</span>
+                        </button>
+                        <button onclick="switchAdminTab('menu')" id="adminTabMenu" class="px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-pizza-slice"></i> Gerenciar Cardápio
+                        </button>
+                        <button onclick="switchAdminTab('reports')" id="adminTabReports" class="px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-line"></i> Relatório de Vendas
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-400 hidden sm:inline">Modo Cozinha / Atendente</span>
+                    </div>
+                </div>
+
+                <!-- Conteúdo das Abas da Lanchonete -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8">
+                    
+                    <!-- 3.1 GESTÃO DE PEDIDOS -->
+                    <div id="adminViewOrders" class="space-y-6 max-w-6xl mx-auto">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-white tracking-tight">Painel de Pedidos Ativos</h2>
+                                <p class="text-xs text-gray-400">Atualize o status do pedido para notificar o cliente instantaneamente.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                                <span class="text-xs text-emerald-400 font-bold">Atualização em Tempo Real Ativa</span>
+                            </div>
+                        </div>
+
+                        <div id="adminOrdersGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Renderizado via JS -->
+                        </div>
+                    </div>
+
+                    <!-- 3.2 GERENCIAR CARDÁPIO -->
+                    <div id="adminViewMenu" class="space-y-6 max-w-6xl mx-auto hidden">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-white tracking-tight">Cardápio da Lanchonete</h2>
+                                <p class="text-xs text-gray-400">Adicione novos sabores, altere preços ou ative/desative itens.</p>
+                            </div>
+                            <button onclick="openPizzaModal()" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-brand-600/30 flex items-center gap-2">
+                                <i class="fa-solid fa-plus"></i> Nova Pizza
+                            </button>
+                        </div>
+
+                        <div id="adminMenuGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Renderizado via JS -->
+                        </div>
+                    </div>
+
+                    <!-- 3.3 RELATÓRIO DE VENDAS -->
+                    <div id="adminViewReports" class="space-y-6 max-w-4xl mx-auto hidden">
+                        <h2 class="text-xl font-bold text-white tracking-tight">Relatório de Faturamento do Dia</h2>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="bg-brand-card border border-brand-border rounded-2xl p-5 shadow-xl">
+                                <span class="text-xs text-gray-400 block mb-1">Total de Pedidos Hoje</span>
+                                <h3 id="reportTotalOrders" class="text-2xl font-black text-white">0</h3>
+                            </div>
+                            <div class="bg-brand-card border border-brand-border rounded-2xl p-5 shadow-xl">
+                                <span class="text-xs text-gray-400 block mb-1">Faturamento Total</span>
+                                <h3 id="reportTotalRevenue" class="text-2xl font-black text-amber-400">R$ 0,00</h3>
+                            </div>
+                            <div class="bg-brand-card border border-brand-border rounded-2xl p-5 shadow-xl">
+                                <span class="text-xs text-gray-400 block mb-1">Ticket Médio por Pedido</span>
+                                <h3 id="reportAvgTicket" class="text-2xl font-black text-emerald-400">R$ 0,00</h3>
+                            </div>
+                        </div>
+
+                        <div class="bg-brand-card border border-brand-border rounded-3xl p-6 shadow-xl">
+                            <h3 class="text-sm font-bold text-white mb-4">Vendas Realizadas Hoje</h3>
+                            <div id="reportSalesList" class="space-y-3">
+                                <!-- Renderizado via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+    <!-- MODAL DE ADICIONAR / EDITAR ITEM (ADMIN) -->
+    <div id="pizzaModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+        <div class="bg-brand-card border border-brand-border rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 id="pizzaModalTitle" class="text-lg font-bold text-white mb-4">Adicionar Novo Item</h3>
+            <form id="formPizza" onsubmit="savePizza(event)" class="space-y-4">
+                <input type="hidden" id="pizzaId">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Nome do Item</label>
+                    <input type="text" id="pizzaName" required class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500" placeholder="Ex: X-Bacon Artesanal">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Categoria</label>
+                        <select id="pizzaCategory" class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500">
+                            <option value="pizza">Pizza</option>
+                            <option value="sanduiche">Sanduíche</option>
+                            <option value="vitamina">Vitamina</option>
+                            <option value="suco">Suco Natural</option>
+                            <option value="refrigerante">Refrigerante</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Preço (R$)</label>
+                        <input type="number" step="0.01" id="pizzaPrice" required class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500" placeholder="28.90">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">URL da Imagem</label>
+                    <input type="url" id="pizzaImage" required class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500" placeholder="https://images.unsplash.com/photo-...">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Descrição / Ingredientes</label>
+                    <textarea id="pizzaDescription" rows="2" required class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500" placeholder="Pão brioche, hambúrguer, bacon..."></textarea>
+                </div>
+                <div class="flex items-center gap-3 pt-2">
+                    <button type="button" onclick="closePizzaModal()" class="flex-1 py-3 bg-brand-border hover:bg-zinc-700 text-white font-bold rounded-xl text-xs transition">Cancelar</button>
+                    <button type="submit" class="flex-1 py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-brand-600/30">Salvar Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE CUSTOMIZAÇÃO DE TAMANHO / BORDA (CLIENTE) -->
+    <div id="customizeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+        <div class="bg-brand-card border border-brand-border rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 id="customizePizzaName" class="text-lg font-bold text-white mb-1">Personalizar Pizza</h3>
+            <p class="text-xs text-gray-400 mb-4">Escolha o tamanho e opcional de borda recheada.</p>
+            
+            <input type="hidden" id="customizePizzaId">
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-2">Tamanho</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="selectSize('Pequena', 0)" id="sizeBtnPequena" class="py-2.5 px-2 bg-brand-dark border border-brand-border rounded-xl text-xs font-bold text-white transition hover:border-brand-500">Pequena<br><span class="text-[10px] text-gray-400">4 fatias</span></button>
+                        <button type="button" onclick="selectSize('Média', 10)" id="sizeBtnMedia" class="py-2.5 px-2 bg-brand-600 border border-brand-500 rounded-xl text-xs font-bold text-white transition">Média<br><span class="text-[10px] text-brand-100">6 fatias</span></button>
+                        <button type="button" onclick="selectSize('Gigante', 22)" id="sizeBtnGigante" class="py-2.5 px-2 bg-brand-dark border border-brand-border rounded-xl text-xs font-bold text-white transition hover:border-brand-500">Gigante<br><span class="text-[10px] text-gray-400">10 fatias</span></button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-2">Borda Recheada</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="selectCrust('Sem Borda', 0)" id="crustBtnNone" class="py-2.5 px-2 bg-brand-600 border border-brand-500 rounded-xl text-xs font-bold text-white transition">Tradicional<br><span class="text-[10px] text-brand-100">R$ 0,00</span></button>
+                        <button type="button" onclick="selectCrust('Catupiry', 8)" id="crustBtnCatupiry" class="py-2.5 px-2 bg-brand-dark border border-brand-border rounded-xl text-xs font-bold text-white transition hover:border-brand-500">Catupiry<br><span class="text-[10px] text-gray-400">+ R$ 8,00</span></button>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-brand-border flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-gray-400">Preço Final:</span>
+                        <h4 id="customizeFinalPrice" class="text-lg font-bold text-amber-400">R$ 0,00</h4>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="closeCustomizeModal()" class="px-4 py-2.5 bg-brand-border text-white text-xs font-bold rounded-xl">Cancelar</button>
+                        <button onclick="addCustomizedPizzaToCart()" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-600/30">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA DO APLICATIVO -->
+    <script>
+        // --- DADOS INICIAIS E ESTADO GLOBAL ---
+        const DEFAULT_MENU = [
+            { id: '1', name: 'Calabresa Especial', category: 'salgada', price: 45.90, description: 'Molho de tomate fresco, mussarela artesanal, calabresa defumada em rodelas e cebola roxa.', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80' },
+            { id: '2', name: 'Margherita Suprema', category: 'salgada', price: 42.00, description: 'Molho de tomate italiano, mussarela de búfala, manjericão fresco e azeite extravirgem.', image: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?auto=format&fit=crop&w=600&q=80' },
+            { id: '3', name: 'Frango com Catupiry', category: 'salgada', price: 49.90, description: 'Frango desfiado temperado ao molho de tomate, milho verde e generosas camadas de catupiry original.', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=600&q=80' },
+            { id: '4', name: 'Quatro Queijos', category: 'salgada', price: 54.00, description: 'Mussarela, provolone, gorgonzola cremoso e parmesão ralado na hora.', image: 'https://images.unsplash.com/photo-1573821663912-569905455b1c?auto=format&fit=crop&w=600&q=80' },
+            { id: '5', name: 'Pizza de Chocolate com Morango', category: 'doce', price: 48.00, description: 'Ganache de chocolate nobre ao leite com cobertura de morangos frescos fatiados.', image: 'https://images.unsplash.com/photo-1579751626657-72bc17010498?auto=format&fit=crop&w=600&q=80' },
+            { id: '6', name: 'Romeu e Julieta', category: 'doce', price: 44.00, description: 'Creme de goiabada cascão artesanal com queijo minas frescal derretido.', image: 'https://images.unsplash.com/photo-1590947132387-155cc02f3212?auto=format&fit=crop&w=600&q=80' }
+        ];
+
+        let state = {
+            currentUser: null, // { email, name, role: 'client' | 'admin' }
+            authRole: 'client', // 'client' | 'admin'
+            authView: 'login', // 'login' | 'register' | 'forgot'
+            clientTab: 'menu', // 'menu' | 'cart' | 'orders'
+            adminTab: 'orders', // 'orders' | 'menu' | 'reports'
+            menu: JSON.parse(localStorage.getItem('fluxo_menu')) || DEFAULT_MENU,
+            users: JSON.parse(localStorage.getItem('fluxo_users')) || [
+                { email: 'lanchonete@fluxo.com', password: '123456', name: 'Lanchonete Admin', role: 'admin' },
+                { email: 'cliente@fluxo.com', password: '123456', name: 'Cliente Padrão', role: 'client', phone: '11999999999' }
+            ],
+            carts: JSON.parse(localStorage.getItem('fluxo_carts')) || {}, // { userEmail: [items] }
+            orders: JSON.parse(localStorage.getItem('fluxo_orders')) || [],
+            currentFilter: 'all'
+        };
+
+        // Estado temporário do modal de personalização
+        let customPizzaState = {
+            pizza: null,
+            size: 'Média',
+            sizeExtra: 10,
+            crust: 'Sem Borda',
+            crustExtra: 0
+        };
+
+        // --- INICIALIZAÇÃO ---
+        window.onload = function() {
+            // Verificar se há link com parâmetro (ex: ?cliente=true ou simulado)
+            const urlParams = new URLSearchParams(window.location.search);
+            if(urlParams.get('role') === 'admin') {
+                state.authRole = 'admin';
+            }
+            renderApp();
+            
+            // Loop para simulação em tempo real atualizando a tela periodicamente
+            setInterval(() => {
+                reloadStateFromStorage();
+                if(state.currentUser) {
+                    if(state.currentUser.role === 'admin' && state.adminTab === 'orders') {
+                        renderAdminOrders();
+                    }
+                    if(state.currentUser.role === 'client' && state.clientTab === 'orders') {
+                        renderClientOrders();
+                    }
+                }
+            }, 3000);
+        };
+
+        function saveStateToStorage() {
+            localStorage.setItem('fluxo_menu', JSON.stringify(state.menu));
+            localStorage.setItem('fluxo_users', JSON.stringify(state.users));
+            localStorage.setItem('fluxo_carts', JSON.stringify(state.carts));
+            localStorage.setItem('fluxo_orders', JSON.stringify(state.orders));
+        }
+
+        function reloadStateFromStorage() {
+            state.menu = JSON.parse(localStorage.getItem('fluxo_menu')) || state.menu;
+            state.users = JSON.parse(localStorage.getItem('fluxo_users')) || state.users;
+            state.carts = JSON.parse(localStorage.getItem('fluxo_carts')) || state.carts;
+            state.orders = JSON.parse(localStorage.getItem('fluxo_orders')) || state.orders;
+        }
+
+        // --- SISTEMA DE MODAL CUSTOMIZADO E TOAST ---
+        function showModal(title, message, type = 'info') {
+            const modal = document.getElementById('customModal');
+            const iconContainer = document.getElementById('modalIconContainer');
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = message;
+
+            if(type === 'success') {
+                iconContainer.className = 'w-12 h-12 rounded-full flex items-center justify-center mb-4 text-xl mx-auto bg-emerald-500/10 text-emerald-500';
+                iconContainer.innerHTML = '<i class="fa-solid fa-check"></i>';
+            } else if(type === 'error') {
+                iconContainer.className = 'w-12 h-12 rounded-full flex items-center justify-center mb-4 text-xl mx-auto bg-brand-500/10 text-brand-500';
+                iconContainer.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            } else {
+                iconContainer.className = 'w-12 h-12 rounded-full flex items-center justify-center mb-4 text-xl mx-auto bg-amber-500/10 text-amber-500';
+                iconContainer.innerHTML = '<i class="fa-solid fa-bell"></i>';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('customModal').classList.add('hidden');
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-4 py-3 rounded-2xl shadow-xl text-xs font-bold text-white flex items-center gap-3 transition transform translate-y-2 opacity-0 ${type === 'success' ? 'bg-emerald-600' : 'bg-brand-600'}`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'} text-base"></i> ${message}`;
+            container.appendChild(toast);
+
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => { toast.remove(); }, 300);
+            }, 3500);
+        }
+
+        // --- AUTENTICAÇÃO E NAVEGAÇÃO ---
+        function switchAuthRole(role) {
+            state.authRole = role;
+            const btnClient = document.getElementById('tabRoleClient');
+            const btnAdmin = document.getElementById('tabRoleAdmin');
+            const registerPrompt = document.getElementById('clientRegisterPrompt');
+
+            if(role === 'client') {
+                btnClient.className = 'py-2.5 text-xs font-bold rounded-xl transition bg-brand-600 text-white shadow';
+                btnAdmin.className = 'py-2.5 text-xs font-bold rounded-xl transition text-gray-400 hover:text-white';
+                registerPrompt.classList.remove('hidden');
+                document.getElementById('loginEmail').value = '';
+            } else {
+                btnAdmin.className = 'py-2.5 text-xs font-bold rounded-xl transition bg-brand-600 text-white shadow';
+                btnClient.className = 'py-2.5 text-xs font-bold rounded-xl transition text-gray-400 hover:text-white';
+                registerPrompt.classList.add('hidden');
+                document.getElementById('loginEmail').value = 'lanchonete@fluxo.com';
+                document.getElementById('loginPassword').value = '123456';
+            }
+        }
+
+        function switchAuthView(view) {
+            state.authView = view;
+            document.getElementById('formLogin').classList.add('hidden');
+            document.getElementById('formRegister').classList.add('hidden');
+            document.getElementById('formForgot').classList.add('hidden');
+
+            if(view === 'login') {
+                document.getElementById('formLogin').classList.remove('hidden');
+                document.getElementById('authCardTitle').innerText = 'Bem-vindo(a)!';
+                document.getElementById('authCardSubtitle').innerText = 'Faça login para saborear as melhores pizzas da região';
+            } else if(view === 'register') {
+                document.getElementById('formRegister').classList.remove('hidden');
+                document.getElementById('authCardTitle').innerText = 'Criar Conta de Cliente';
+                document.getElementById('authCardSubtitle').innerText = 'Cadastre-se rapidamente para fazer seus pedidos';
+            } else if(view === 'forgot') {
+                document.getElementById('formForgot').classList.remove('hidden');
+                document.getElementById('authCardTitle').innerText = 'Recuperar Senha';
+                document.getElementById('authCardSubtitle').innerText = 'Insira seu e-mail e defina uma nova senha';
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            reloadStateFromStorage();
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPassword').value.trim();
+
+            const found = state.users.find(u => u.email === email && u.password === pass);
+            if(found) {
+                state.currentUser = found;
+                showToast(`Bem-vindo de volta, ${found.name}!`, 'success');
+                renderApp();
+            } else {
+                showModal('Erro no Login', 'E-mail ou senha incorretos. Verifique suas credenciais.', 'error');
+            }
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            reloadStateFromStorage();
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
+            const password = document.getElementById('regPassword').value.trim();
+
+            if(state.users.some(u => u.email === email)) {
+                showModal('E-mail já cadastrado', 'Este e-mail já possui conta no sistema. Faça login ou recupere a senha.', 'error');
+                return;
+            }
+
+            const newUser = { name, email, phone, password, role: 'client' };
+            state.users.push(newUser);
+            saveStateToStorage();
+
+            state.currentUser = newUser;
+            showToast('Cadastro realizado com sucesso!', 'success');
+            renderApp();
+        }
+
+        function handleForgot(e) {
+            e.preventDefault();
+            reloadStateFromStorage();
+            const email = document.getElementById('forgotEmail').value.trim();
+            const newPassword = document.getElementById('forgotNewPassword').value.trim();
+
+            const user = state.users.find(u => u.email === email);
+            if(user) {
+                user.password = newPassword;
+                saveStateToStorage();
+                showModal('Senha Alterada!', 'Sua senha foi redefinida com sucesso. Faça login agora.', 'success');
+                switchAuthView('login');
+            } else {
+                showModal('E-mail não encontrado', 'Não encontramos nenhuma conta com este e-mail no sistema.', 'error');
+            }
+        }
+
+        function logout() {
+            state.currentUser = null;
+            renderApp();
+            showToast('Sessão encerrada com sucesso.', 'info');
+        }
+
+        function copyClientShareLink() {
+            const link = window.location.origin + window.location.pathname;
+            document.execCommand('copy');
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(link);
+            }
+            showToast('Link de acesso do cliente copiado para a área de transferência!', 'success');
+        }
+
+        // --- RENDERIZADOR GERAL DO APLICATIVO ---
+        function renderApp() {
+            const screenAuth = document.getElementById('screenAuth');
+            const screenClient = document.getElementById('screenClient');
+            const screenAdmin = document.getElementById('screenAdmin');
+            const navRight = document.getElementById('navRight');
+
+            screenAuth.classList.add('hidden');
+            screenClient.classList.add('hidden');
+            screenAdmin.classList.add('hidden');
+
+            if(!state.currentUser) {
+                screenAuth.classList.remove('hidden');
+                navRight.innerHTML = `
+                    <button onclick="copyClientShareLink()" class="px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-share-nodes"></i> Copiar Link
+                    </button>
+                `;
+            } else if(state.currentUser.role === 'admin') {
+                screenAdmin.classList.remove('hidden');
+                navRight.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="text-right hidden sm:block">
+                            <h4 class="text-xs font-bold text-white">${state.currentUser.name}</h4>
+                            <span class="text-[10px] text-amber-500 uppercase tracking-widest font-semibold">Administração</span>
+                        </div>
+                        <button onclick="logout()" class="p-2.5 bg-brand-border hover:bg-brand-600 text-white rounded-xl text-xs transition" title="Sair">
+                            <i class="fa-solid fa-power-off"></i>
+                        </button>
+                    </div>
+                `;
+                renderAdminTabContent();
+            } else {
+                screenClient.classList.remove('hidden');
+                navRight.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="text-right hidden sm:block">
+                            <h4 class="text-xs font-bold text-white">${state.currentUser.name}</h4>
+                            <span class="text-[10px] text-emerald-400 font-medium">Cliente Conectado</span>
+                        </div>
+                        <button onclick="logout()" class="p-2.5 bg-brand-border hover:bg-brand-600 text-white rounded-xl text-xs transition" title="Sair">
+                            <i class="fa-solid fa-power-off"></i>
+                        </button>
+                    </div>
+                `;
+                renderClientTabContent();
+            }
+        }
+
+        // --- NAVEGAÇÃO CLIENTE ---
+        function switchClientTab(tab) {
+            state.clientTab = tab;
+            document.getElementById('clientTabMenu').className = tab === 'menu' ? 'px-4 py-2 rounded-xl text-xs font-bold transition bg-brand-600 text-white flex items-center gap-2' : 'px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2';
+            document.getElementById('clientTabCart').className = tab === 'cart' ? 'px-4 py-2 rounded-xl text-xs font-bold transition bg-brand-600 text-white flex items-center gap-2 relative' : 'px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2 relative';
+            document.getElementById('clientTabOrders').className = tab === 'orders' ? 'px-4 py-2 rounded-xl text-xs font-bold transition bg-brand-600 text-white flex items-center gap-2' : 'px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2';
+
+            document.getElementById('clientViewMenu').classList.add('hidden');
+            document.getElementById('clientViewCart').classList.add('hidden');
+            document.getElementById('clientViewOrders').classList.add('hidden');
+
+            if(tab === 'menu') {
+                document.getElementById('clientViewMenu').classList.remove('hidden');
+                renderMenuGrid();
+            } else if(tab === 'cart') {
+                document.getElementById('clientViewCart').classList.remove('hidden');
+                renderCart();
+            } else if(tab === 'orders') {
+                document.getElementById('clientViewOrders').classList.remove('hidden');
+                renderClientOrders();
+            }
+            updateCartBadge();
+        }
+
+        function renderClientTabContent() {
+            switchClientTab(state.clientTab);
+            updateCartBadge();
+        }
+
+        // --- CARDÁPIO & CUSTOMIZAÇÃO DO CLIENTE ---
+        function filterMenu(category) {
+            state.currentFilter = category;
+            document.getElementById('filterBtnAll').className = category === 'all' ? 'px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white transition whitespace-nowrap' : 'px-4 py-2 rounded-xl text-xs font-bold bg-brand-card border border-brand-border text-gray-300 hover:text-white transition whitespace-nowrap';
+            document.getElementById('filterBtnSalgada').className = category === 'salgada' ? 'px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white transition whitespace-nowrap' : 'px-4 py-2 rounded-xl text-xs font-bold bg-brand-card border border-brand-border text-gray-300 hover:text-white transition whitespace-nowrap';
+            document.getElementById('filterBtnDoce').className = category === 'doce' ? 'px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white transition whitespace-nowrap' : 'px-4 py-2 rounded-xl text-xs font-bold bg-brand-card border border-brand-border text-gray-300 hover:text-white transition whitespace-nowrap';
+            renderMenuGrid();
+        }
+
+        function renderMenuGrid() {
+            const grid = document.getElementById('menuGrid');
+            const items = state.currentFilter === 'all' ? state.menu : state.menu.filter(m => m.category === state.currentFilter);
+
+            if(items.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-gray-400 text-xs">Nenhuma pizza encontrada nesta categoria.</div>`;
+                return;
+            }
+
+            grid.innerHTML = items.map(pizza => `
+                <div class="bg-brand-card border border-brand-border rounded-3xl overflow-hidden shadow-xl flex flex-col group hover:border-brand-500/50 transition">
+                    <div class="h-48 overflow-hidden relative">
+                        <img src="${pizza.image}" onerror="this.src='https://placehold.co/600x400/18181b/ffffff?text=Pizza'" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <span class="absolute top-3 right-3 bg-brand-dark/80 backdrop-blur-md text-amber-400 font-extrabold text-xs px-3 py-1 rounded-full border border-brand-border">
+                            R$ ${pizza.price.toFixed(2)}
+                        </span>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <span class="text-[10px] font-bold text-brand-500 uppercase tracking-widest">${pizza.category}</span>
+                            <h3 class="font-bold text-white text-base mt-1 mb-2">${pizza.name}</h3>
+                            <p class="text-xs text-gray-400 line-clamp-2">${pizza.description}</p>
+                        </div>
+                        <div class="pt-4 mt-4 border-t border-brand-border flex items-center justify-between">
+                            <span class="text-[11px] text-gray-400"><i class="fa-solid fa-fire mr-1 text-amber-500"></i> Forno a lenha</span>
+                            <button onclick="openCustomizeModal('${pizza.id}')" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-brand-600/30 flex items-center gap-2">
+                                <i class="fa-solid fa-plus"></i> Pedir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openCustomizeModal(pizzaId) {
+            const pizza = state.menu.find(m => m.id === pizzaId);
+            if(!pizza) return;
+
+            customPizzaState = {
+                pizza: pizza,
+                size: 'Média',
+                sizeExtra: 10,
+                crust: 'Sem Borda',
+                crustExtra: 0
+            };
+
+            document.getElementById('customizePizzaName').innerText = pizza.name;
+            document.getElementById('customizePizzaId').value = pizza.id;
+            
+            selectSize('Média', 10);
+            selectCrust('Sem Borda', 0);
+
+            document.getElementById('customizeModal').classList.remove('hidden');
+        }
+
+        function closeCustomizeModal() {
+            document.getElementById('customizeModal').classList.add('hidden');
+        }
+
+        function selectSize(size, extra) {
+            customPizzaState.size = size;
+            customPizzaState.sizeExtra = extra;
+
+            document.getElementById('sizeBtnPequena').className = size === 'Pequena' ? 'py-2.5 px-2 bg-brand-600 border border-brand-500 rounded-xl text-xs font-bold text-white transition' : 'py-2.5 px-2 bg-brand-dark border border-brand-border rounded-xl text-xs font-bold text-white transition hover:border-brand-500';
+            document.getElementById('sizeBtnMedia').className = size === 'Média' ? 'py-2.5 px-2 bg-brand-600 border border-brand-500 rounded-xl text-xs font-bold text-white transition' : 'py-2.5 px-2 bg-brand-dark border border-brand-border rounded-xl text-xs font-bold text-white transition hover:border-brand-500';
+            document.getElementById('sizeBtnGigante').className = size === 'Gigante' ? 'py-2.5 px-2 bg-brand-600 border border-brand-500 rounded-xl text-xs font-bold text-white transition' : 'py-2.5 px-2 bg-brand-dark border border-brand-border rounded-xl text-xs font-bold text-white transition hover:border-brand-500';
+
+            updateCustomizePrice();
+        }
+
+        function selectCrust(crust, extra) {
+            customPizzaState.crust = crust;
+            customPizzaState.crustExtra = extra;
+
+            document.getElementById('crustBtnNone').className = crust === 'Sem Borda' ? 'py-2.5 px-2 bg-brand-600 border border-brand-500 rounded-xl text-xs font-bold text-white transition' : 'py-2.5 px-2 bg-brand-dark border border-brand-border rounded-xl text-xs font-bold text-white transition hover:border-brand-500';
+            document.getElementById('crustBtnCatupiry').className = crust === 'Catupiry' ? 'py-2.5 px-2 bg-brand-600 border border-brand-500 rounded-xl text-xs font-bold text-white transition' : 'py-2.5 px-2 bg-brand-dark border border-brand-border rounded-xl text-xs font-bold text-white transition hover:border-brand-500';
+
+            updateCustomizePrice();
+        }
+
+        function updateCustomizePrice() {
+            const base = customPizzaState.pizza.price;
+            const total = base + customPizzaState.sizeExtra + customPizzaState.crustExtra;
+            document.getElementById('customizeFinalPrice').innerText = `R$ ${total.toFixed(2)}`;
+        }
+
+        function addCustomizedPizzaToCart() {
+            const userEmail = state.currentUser.email;
+            if(!state.carts[userEmail]) {
+                state.carts[userEmail] = [];
+            }
+
+            const base = customPizzaState.pizza.price;
+            const finalPrice = base + customPizzaState.sizeExtra + customPizzaState.crustExtra;
+
+            const cartItem = {
+                cartId: crypto.randomUUID(),
+                pizzaId: customPizzaState.pizza.id,
+                name: customPizzaState.pizza.name,
+                image: customPizzaState.pizza.image,
+                size: customPizzaState.size,
+                crust: customPizzaState.crust,
+                price: finalPrice,
+                quantity: 1
+            };
+
+            state.carts[userEmail].push(cartItem);
+            saveStateToStorage();
+            closeCustomizeModal();
+            updateCartBadge();
+            showToast(`${cartItem.name} (${cartItem.size}) adicionado ao carrinho!`, 'success');
+        }
+
+        function updateCartBadge() {
+            if(!state.currentUser || state.currentUser.role !== 'client') return;
+            const userEmail = state.currentUser.email;
+            const items = state.carts[userEmail] || [];
+            const badge = document.getElementById('cartBadge');
+            const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
+
+            if(totalItems > 0) {
+                badge.innerText = totalItems;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // --- CARRINHO E CHECKOUT ---
+        function renderCart() {
+            const userEmail = state.currentUser.email;
+            const items = state.carts[userEmail] || [];
+            const list = document.getElementById('cartItemsList');
+
+            if(items.length === 0) {
+                list.innerHTML = `
+                    <div class="bg-brand-card border border-brand-border rounded-3xl p-12 text-center space-y-3">
+                        <i class="fa-solid fa-cart-shopping text-4xl text-gray-600"></i>
+                        <h3 class="text-base font-bold text-white">Seu carrinho está vazio</h3>
+                        <p class="text-xs text-gray-400">Escolha deliciosas pizzas no cardápio para começar.</p>
+                        <button onclick="switchClientTab('menu')" class="mt-2 px-5 py-2.5 bg-brand-600 text-white text-xs font-bold rounded-xl">Ver Cardápio</button>
+                    </div>
+                `;
+                document.getElementById('cartSubtotal').innerText = 'R$ 0,00';
+                document.getElementById('cartTotal').innerText = 'R$ 8,00';
+                return;
+            }
+
+            let subtotal = 0;
+            list.innerHTML = items.map(item => {
+                subtotal += item.price * item.quantity;
+                return `
+                    <div class="bg-brand-card border border-brand-border rounded-2xl p-4 flex items-center justify-between gap-4">
+                        <img src="${item.image}" class="w-16 h-16 rounded-xl object-cover shrink-0">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-white text-sm">${item.name}</h4>
+                            <p class="text-[11px] text-gray-400">Tam: ${item.size} | Borda: ${item.crust}</p>
+                            <span class="text-amber-400 text-xs font-extrabold">R$ ${(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="changeQuantity('${item.cartId}', -1)" class="w-8 h-8 rounded-xl bg-brand-border text-white text-xs flex items-center justify-center hover:bg-brand-600 transition"><i class="fa-solid fa-minus"></i></button>
+                            <span class="text-xs font-bold text-white w-6 text-center">${item.quantity}</span>
+                            <button onclick="changeQuantity('${item.cartId}', 1)" class="w-8 h-8 rounded-xl bg-brand-border text-white text-xs flex items-center justify-center hover:bg-brand-600 transition"><i class="fa-solid fa-plus"></i></button>
+                            <button onclick="removeItem('${item.cartId}')" class="w-8 h-8 rounded-xl bg-brand-500/10 text-brand-500 text-xs flex items-center justify-center hover:bg-brand-500 hover:text-white transition ml-2"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const total = subtotal + 8.00;
+            document.getElementById('cartSubtotal').innerText = `R$ ${subtotal.toFixed(2)}`;
+            document.getElementById('cartTotal').innerText = `R$ ${total.toFixed(2)}`;
+        }
+
+        function changeQuantity(cartId, delta) {
+            const userEmail = state.currentUser.email;
+            const items = state.carts[userEmail] || [];
+            const item = items.find(i => i.cartId === cartId);
+            if(item) {
+                item.quantity += delta;
+                if(item.quantity <= 0) {
+                    state.carts[userEmail] = items.filter(i => i.cartId !== cartId);
+                }
+                saveStateToStorage();
+                renderCart();
+                updateCartBadge();
+            }
+        }
+
+        function removeItem(cartId) {
+            const userEmail = state.currentUser.email;
+            state.carts[userEmail] = (state.carts[userEmail] || []).filter(i => i.cartId !== cartId);
+            saveStateToStorage();
+            renderCart();
+            updateCartBadge();
+            showToast('Item removido do carrinho.', 'info');
+        }
+
+        function checkoutOrder() {
+            const userEmail = state.currentUser.email;
+            const items = state.carts[userEmail] || [];
+            if(items.length === 0) {
+                showModal('Carrinho Vazio', 'Adicione itens ao carrinho antes de finalizar o pedido.', 'error');
+                return;
+            }
+
+            const address = document.getElementById('checkoutAddress').value.trim();
+            const payment = document.getElementById('checkoutPayment').value;
+            const notes = document.getElementById('checkoutNotes').value.trim();
+
+            if(!address) {
+                showModal('Endereço Obrigatório', 'Por favor, informe o endereço de entrega.', 'error');
+                return;
+            }
+
+            let subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            let total = subtotal + 8.00;
+
+            const newOrder = {
+                id: 'FLX-' + Math.floor(1000 + Math.random() * 9000),
+                clientEmail: userEmail,
+                clientName: state.currentUser.name,
+                clientPhone: state.currentUser.phone || '(11) 99999-9999',
+                items: items,
+                subtotal: subtotal,
+                deliveryFee: 8.00,
+                total: total,
+                address: address,
+                payment: payment,
+                notes: notes,
+                status: 'Recebido', // Recebido, Em Preparação, Saiu para Entrega, Entregue
+                createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: Date.now()
+            };
+
+            state.orders.unshift(newOrder);
+            state.carts[userEmail] = []; // Limpar carrinho
+            saveStateToStorage();
+
+            showToast('Pedido realizado com sucesso!', 'success');
+            switchClientTab('orders');
+        }
+
+        // --- ACOMPANHAMENTO DE PEDIDOS (CLIENTE) ---
+        function renderClientOrders() {
+            const userEmail = state.currentUser.email;
+            const orders = state.orders.filter(o => o.clientEmail === userEmail);
+            const list = document.getElementById('clientOrdersList');
+
+            if(orders.length === 0) {
+                list.innerHTML = `
+                    <div class="bg-brand-card border border-brand-border rounded-3xl p-12 text-center space-y-3">
+                        <i class="fa-solid fa-box-open text-4xl text-gray-600"></i>
+                        <h3 class="text-base font-bold text-white">Nenhum pedido realizado ainda</h3>
+                        <p class="text-xs text-gray-400">Faça o seu primeiro pedido pelo cardápio.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = orders.map(order => {
+                let statusStep = 1;
+                if(order.status === 'Em Preparação') statusStep = 2;
+                if(order.status === 'Saiu para Entrega') statusStep = 3;
+                if(order.status === 'Entregue') statusStep = 4;
+
+                return `
+                    <div class="bg-brand-card border border-brand-border rounded-3xl p-6 shadow-xl space-y-5">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-brand-border pb-4">
+                            <div>
+                                <span class="text-xs font-extrabold text-amber-500">${order.id}</span>
+                                <h3 class="text-base font-bold text-white">Pedido realizado às ${order.createdAt}</h3>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${order.status === 'Entregue' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'}">
+                                ${order.status}
+                            </span>
+                        </div>
+
+                        <!-- Barra de Progresso do Status -->
+                        <div class="grid grid-cols-4 gap-2 text-center">
+                            <div class="space-y-1">
+                                <div class="h-2 rounded-full ${statusStep >= 1 ? 'bg-amber-500' : 'bg-brand-border'}"></div>
+                                <span class="text-[10px] ${statusStep >= 1 ? 'text-amber-400 font-bold' : 'text-gray-500'}">Recebido</span>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="h-2 rounded-full ${statusStep >= 2 ? 'bg-amber-500' : 'bg-brand-border'}"></div>
+                                <span class="text-[10px] ${statusStep >= 2 ? 'text-amber-400 font-bold' : 'text-gray-500'}">Preparação</span>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="h-2 rounded-full ${statusStep >= 3 ? 'bg-amber-500' : 'bg-brand-border'}"></div>
+                                <span class="text-[10px] ${statusStep >= 3 ? 'text-amber-400 font-bold' : 'text-gray-500'}">Saiu p/ Entrega</span>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="h-2 rounded-full ${statusStep >= 4 ? 'bg-emerald-500' : 'bg-brand-border'}"></div>
+                                <span class="text-[10px] ${statusStep >= 4 ? 'text-emerald-400 font-bold' : 'text-gray-500'}">Entregue</span>
+                            </div>
+                        </div>
+
+                        <!-- Detalhes do Pedido -->
+                        <div class="bg-black/40 rounded-2xl p-4 space-y-2 text-xs">
+                            <div class="font-semibold text-gray-300 mb-1">Itens do Pedido:</div>
+                            ${order.items.map(i => `<div class="flex justify-between text-gray-400"><span>${i.quantity}x ${i.name} (${i.size})</span><span class="text-white">R$ ${(i.price * i.quantity).toFixed(2)}</span></div>`).join('')}
+                            <div class="pt-2 border-t border-brand-border flex justify-between font-bold text-white">
+                                <span>Total (com taxa de entrega)</span>
+                                <span class="text-amber-400">R$ ${order.total.toFixed(2)}</span>
+                            </div>
+                            <div class="text-[11px] text-gray-400 pt-1">📍 Endereço: ${order.address} | Pagamento: ${order.payment}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- PAINEL DA LANCHONETE (ADMIN) ---
+        function switchAdminTab(tab) {
+            state.adminTab = tab;
+            document.getElementById('adminTabOrders').className = tab === 'orders' ? 'px-4 py-2 rounded-xl text-xs font-bold transition bg-brand-600 text-white flex items-center gap-2' : 'px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2';
+            document.getElementById('adminTabMenu').className = tab === 'menu' ? 'px-4 py-2 rounded-xl text-xs font-bold transition bg-brand-600 text-white flex items-center gap-2' : 'px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2';
+            document.getElementById('adminTabReports').className = tab === 'reports' ? 'px-4 py-2 rounded-xl text-xs font-bold transition bg-brand-600 text-white flex items-center gap-2' : 'px-4 py-2 rounded-xl text-xs font-bold transition text-gray-400 hover:text-white flex items-center gap-2';
+
+            document.getElementById('adminViewOrders').classList.add('hidden');
+            document.getElementById('adminViewMenu').classList.add('hidden');
+            document.getElementById('adminViewReports').classList.add('hidden');
+
+            if(tab === 'orders') {
+                document.getElementById('adminViewOrders').classList.remove('hidden');
+                renderAdminOrders();
+            } else if(tab === 'menu') {
+                document.getElementById('adminViewMenu').classList.remove('hidden');
+                renderAdminMenu();
+            } else if(tab === 'reports') {
+                document.getElementById('adminViewReports').classList.remove('hidden');
+                renderAdminReports();
+            }
+        }
+
+        function renderAdminTabContent() {
+            switchAdminTab(state.adminTab);
+            updateAdminOrderBadge();
+        }
+
+        function updateAdminOrderBadge() {
+            const pending = state.orders.filter(o => o.status !== 'Entregue');
+            const badge = document.getElementById('adminOrderBadge');
+            if(pending.length > 0) {
+                badge.innerText = pending.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function renderAdminOrders() {
+            const grid = document.getElementById('adminOrdersGrid');
+            const orders = state.orders;
+
+            updateAdminOrderBadge();
+
+            if(orders.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-gray-400 text-xs">Nenhum pedido recebido no momento.</div>`;
+                return;
+            }
+
+            grid.innerHTML = orders.map(order => `
+                <div class="bg-brand-card border border-brand-border rounded-3xl p-5 shadow-xl flex flex-col justify-between space-y-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-black text-amber-400">${order.id}</span>
+                            <span class="text-[10px] text-gray-400">${order.createdAt}</span>
+                        </div>
+                        <h4 class="font-bold text-white text-sm mb-1">${order.clientName}</h4>
+                        <p class="text-[11px] text-gray-400"><i class="fa-solid fa-phone mr-1"></i> ${order.clientPhone}</p>
+                        <p class="text-[11px] text-gray-300 mt-2 bg-black/40 p-2 rounded-xl">📍 ${order.address}</p>
+                        ${order.notes ? `<p class="text-[11px] text-amber-300 mt-1 italic">Obs: ${order.notes}</p>` : ''}
+                        
+                        <div class="mt-3 pt-3 border-t border-brand-border space-y-1">
+                            ${order.items.map(i => `<div class="flex justify-between text-xs text-gray-300"><span>${i.quantity}x ${i.name} (${i.size})</span><span class="font-semibold text-white">R$ ${(i.price * i.quantity).toFixed(2)}</span></div>`).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-brand-border space-y-3">
+                        <div class="flex items-center justify-between text-xs font-bold text-white">
+                            <span>Total:</span>
+                            <span class="text-amber-400">R$ ${order.total.toFixed(2)}</span>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-gray-400 mb-1">Alterar Status do Pedido</label>
+                            <select onchange="updateOrderStatus('${order.id}', this.value)" class="w-full bg-black/50 border border-brand-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500 font-semibold">
+                                <option value="Recebido" ${order.status === 'Recebido' ? 'selected' : ''}>Recebido</option>
+                                <option value="Em Preparação" ${order.status === 'Em Preparação' ? 'selected' : ''}>Em Preparação</option>
+                                <option value="Saiu para Entrega" ${order.status === 'Saiu para Entrega' ? 'selected' : ''}>Saiu para Entrega</option>
+                                <option value="Entregue" ${order.status === 'Entregue' ? 'selected' : ''}>Entregue</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            const order = state.orders.find(o => o.id === orderId);
+            if(order) {
+                order.status = newStatus;
+                saveStateToStorage();
+                renderAdminOrders();
+                showToast(`Status do pedido ${orderId} atualizado para ${newStatus}!`, 'success');
+            }
+        }
+
+        // --- GERENCIAMENTO DE CARDÁPIO (ADMIN) ---
+        function renderAdminMenu() {
+            const grid = document.getElementById('adminMenuGrid');
+            grid.innerHTML = state.menu.map(pizza => `
+                <div class="bg-brand-card border border-brand-border rounded-3xl overflow-hidden shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="h-40 overflow-hidden relative">
+                            <img src="${pizza.image}" onerror="this.src='https://placehold.co/600x400/18181b/ffffff?text=Pizza'" class="w-full h-full object-cover">
+                            <span class="absolute top-3 right-3 bg-brand-dark/80 backdrop-blur-md text-amber-400 font-extrabold text-xs px-3 py-1 rounded-full border border-brand-border">
+                                R$ ${pizza.price.toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="p-4">
+                            <span class="text-[10px] font-bold text-brand-500 uppercase tracking-widest">${pizza.category}</span>
+                            <h3 class="font-bold text-white text-sm mt-1 mb-1">${pizza.name}</h3>
+                            <p class="text-xs text-gray-400 line-clamp-2">${pizza.description}</p>
+                        </div>
+                    </div>
+                    <div class="p-4 pt-0 flex items-center justify-end gap-2">
+                        <button onclick="openPizzaModal('${pizza.id}')" class="px-3 py-2 bg-brand-border hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-pen"></i> Editar</button>
+                        <button onclick="deletePizza('${pizza.id}')" class="px-3 py-2 bg-brand-500/10 hover:bg-brand-500 text-brand-500 hover:text-white rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-trash"></i> Excluir</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openPizzaModal(pizzaId = null) {
+            document.getElementById('pizzaModal').classList.remove('hidden');
+            if(pizzaId) {
+                const pizza = state.menu.find(m => m.id === pizzaId);
+                document.getElementById('pizzaModalTitle').innerText = 'Editar Pizza';
+                document.getElementById('pizzaId').value = pizza.id;
+                document.getElementById('pizzaName').value = pizza.name;
+                document.getElementById('pizzaCategory').value = pizza.category;
+                document.getElementById('pizzaPrice').value = pizza.price;
+                document.getElementById('pizzaImage').value = pizza.image;
+                document.getElementById('pizzaDescription').value = pizza.description;
+            } else {
+                document.getElementById('pizzaModalTitle').innerText = 'Adicionar Nova Pizza';
+                document.getElementById('pizzaId').value = '';
+                document.getElementById('formPizza').reset();
+            }
+        }
+
+        function closePizzaModal() {
+            document.getElementById('pizzaModal').classList.add('hidden');
+        }
+
+        function savePizza(e) {
+            e.preventDefault();
+            const id = document.getElementById('pizzaId').value;
+            const name = document.getElementById('pizzaName').value.trim();
+            const category = document.getElementById('pizzaCategory').value;
+            const price = parseFloat(document.getElementById('pizzaPrice').value);
+            const image = document.getElementById('pizzaImage').value.trim();
+            const description = document.getElementById('pizzaDescription').value.trim();
+
+            if(id) {
+                const pizza = state.menu.find(m => m.id === id);
+                if(pizza) {
+                    pizza.name = name;
+                    pizza.category = category;
+                    pizza.price = price;
+                    pizza.image = image;
+                    pizza.description = description;
+                }
+                showToast('Pizza atualizada com sucesso!', 'success');
+            } else {
+                const newPizza = {
+                    id: crypto.randomUUID(),
+                    name, category, price, image, description
+                };
+                state.menu.push(newPizza);
+                showToast('Nova pizza adicionada ao cardápio!', 'success');
+            }
+
+            saveStateToStorage();
+            closePizzaModal();
+            renderAdminMenu();
+        }
+
+        function deletePizza(pizzaId) {
+            state.menu = state.menu.filter(m => m.id !== pizzaId);
+            saveStateToStorage();
+            renderAdminMenu();
+            showToast('Pizza removida do cardápio.', 'info');
+        }
+
+        // --- RELATÓRIO DE VENDAS (ADMIN) ---
+        function renderAdminReports() {
+            const orders = state.orders;
+            const totalOrders = orders.length;
+            const totalRevenue = orders.reduce((acc, o) => acc + o.total, 0);
+            const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+            document.getElementById('reportTotalOrders').innerText = totalOrders;
+            document.getElementById('reportTotalRevenue').innerText = `R$ ${totalRevenue.toFixed(2)}`;
+            document.getElementById('reportAvgTicket').innerText = `R$ ${avgTicket.toFixed(2)}`;
+
+            const list = document.getElementById('reportSalesList');
+            if(orders.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-400 text-xs py-6">Nenhuma venda registrada hoje.</div>`;
+                return;
+            }
+
+            list.innerHTML = orders.map(order => `
+                <div class="flex items-center justify-between p-3 bg-black/40 rounded-2xl text-xs">
+                    <div>
+                        <span class="font-bold text-amber-400">${order.id}</span> - <span class="text-white">${order.clientName}</span>
+                        <div class="text-[10px] text-gray-400">${order.createdAt} | ${order.items.length} itens</div>
+                    </div>
+                    <span class="font-extrabold text-emerald-400">R$ ${order.total.toFixed(2)}</span>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
+```
